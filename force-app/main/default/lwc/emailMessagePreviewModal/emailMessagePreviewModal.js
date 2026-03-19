@@ -8,7 +8,6 @@ export default class EmailMessagePreviewModal extends LightningModal {
     @api emailMessageSubject;
     @api previewFields;
     @api previewFieldUrls;
-    @api previewTableColumns;
 
     modalIsLoading = true;
     modalErrorMessage = '';
@@ -41,6 +40,7 @@ export default class EmailMessagePreviewModal extends LightningModal {
         this.textBody = this.getFirstField(fieldsObj, ['TextBody', 'TextBodyPlain', 'PlainTextBody']);
 
         const excludeKeys = new Set([
+            'Subject',
             'FromAddress',
             'ToAddress',
             'CcAddress',
@@ -53,14 +53,7 @@ export default class EmailMessagePreviewModal extends LightningModal {
             'TextBodyPlain',
             'PlainTextBody'
         ]);
-        const allowedColumns = new Set(this.previewTableColumns || []);
-        allowedColumns.add('Subject'); // Subject is always displayed in the table
-        this.previewEntries = this.toPreviewEntries(
-            this.previewFields,
-            this.previewFieldUrls,
-            excludeKeys,
-            allowedColumns
-        );
+        this.previewEntries = this.toPreviewEntries(this.previewFields, this.previewFieldUrls, excludeKeys);
     }
 
     getFirstField(fieldsObj, keys) {
@@ -105,11 +98,10 @@ export default class EmailMessagePreviewModal extends LightningModal {
         this.close();
     }
 
-    toPreviewEntries(previewFields, previewFieldUrls, excludeKeys, allowedColumns) {
+    toPreviewEntries(previewFields, previewFieldUrls, excludeKeys) {
         const fieldsObj = previewFields || {};
         const urlsObj = previewFieldUrls || {};
         const exclude = excludeKeys || new Set();
-        const allowed = allowedColumns || new Set();
         const entries = Object.keys(fieldsObj).map((key) => ({
             key,
             value: fieldsObj[key],
@@ -130,7 +122,6 @@ export default class EmailMessagePreviewModal extends LightningModal {
 
         return entries
             .filter((e) => !e.excluded)
-            .filter((e) => allowed.has(e.key))
             .filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
     }
 

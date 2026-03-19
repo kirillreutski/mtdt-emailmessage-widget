@@ -19,7 +19,7 @@ public with sharing class EmailMessageBackupWidgetService {
         @AuraEnabled public Map<String, String> previewFields;
         // For specific reference fields (e.g., ParentId), provide URL like `/<id>` for the LWC.
         @AuraEnabled public Map<String, String> previewFieldUrls;
-        // Configured list of keys to show in the bottom preview table in the modal.
+        // Configured list of keys to show in the main table (LWC list view).
         // `Subject` is always included.
         @AuraEnabled public List<String> previewTableColumns;
     }

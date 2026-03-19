@@ -2,27 +2,48 @@ import { LightningElement, api } from 'lwc';
 import searchEmailMessages from '@salesforce/apex/EmailMessageBackupWidgetService.searchEmailMessages';
 import EmailMessagePreviewModal from 'c/emailMessagePreviewModal';
 
-const COLUMNS = [
-    {
-        label: 'Subject',
-        fieldName: 'subject',
-        type: 'button',
-        typeAttributes: {
-            label: { fieldName: 'subject' },
-            name: 'preview',
-            variant: 'base'
+const SUBJECT_COLUMN = {
+    label: 'Subject',
+    fieldName: 'subject',
+    type: 'button',
+    typeAttributes: {
+        label: { fieldName: 'subject' },
+        name: 'preview',
+        variant: 'base'
+    }
+};
+
+function tokenToFieldName(token) {
+    // `MessageDate` -> `messageDate`
+    if (!token) {
+        return '';
+    }
+    return token.charAt(0).toLowerCase() + token.slice(1);
+}
+
+function buildColumnsFromTokens(tokens) {
+    const seen = new Set(['Subject']);
+    const result = [SUBJECT_COLUMN];
+
+    (tokens || []).forEach((token) => {
+        if (!token || token === 'Subject' || seen.has(token)) {
+            return;
         }
-    },
-    { label: 'FromAddress', fieldName: 'fromAddress', type: 'text' },
-    { label: 'ToAddress', fieldName: 'toAddress', type: 'text' },
-    { label: 'MessageDate', fieldName: 'messageDate', type: 'text' },
-    { label: 'Status', fieldName: 'status', type: 'text' }
-];
+        seen.add(token);
+        result.push({
+            label: token,
+            fieldName: tokenToFieldName(token),
+            type: 'text'
+        });
+    });
+
+    return result;
+}
 
 export default class EmailMessageBackupWidget extends LightningElement {
     _recordId;
 
-    columns = COLUMNS;
+    columns = [SUBJECT_COLUMN];
     rows = [];
     errorMessage = '';
     isLoading = false;
@@ -52,17 +73,41 @@ export default class EmailMessageBackupWidget extends LightningElement {
 
         try {
             const payload = await searchEmailMessages({ parentRecordId: this._recordId });
-            this.rows = (payload || []).map((item) => ({
-                id: item.id,
-                subject: item.subject || '',
-                fromAddress: item.fromAddress || '',
-                toAddress: item.toAddress || '',
-                messageDate: item.messageDate || '',
-                status: item.status || '',
-                previewFields: item.previewFields || {},
-                previewFieldUrls: item.previewFieldUrls || {},
-                previewTableColumns: item.previewTableColumns || []
-            }));
+
+            const tokens =
+                payload && payload.length && payload[0].previewTableColumns
+                    ? payload[0].previewTableColumns
+                    : ['Subject'];
+            this.columns = buildColumnsFromTokens(tokens);
+
+            this.rows = (payload || []).map((item) => {
+                const previewFields = item.previewFields || {};
+                const previewFieldUrls = item.previewFieldUrls || {};
+                const row = {
+                    id: item.id,
+                    subject: item.subject || previewFields.Subject || '',
+                    previewFields,
+                    previewFieldUrls,
+                    // Keep for backward compatibility / modal params.
+                    previewTableColumns: item.previewTableColumns || []
+                };
+
+                tokens.forEach((token) => {
+                    if (!token || token === 'Subject') {
+                        return;
+                    }
+                    const fieldName = tokenToFieldName(token);
+
+                    const hasKey =
+                        previewFields &&
+                        Object.prototype.hasOwnProperty.call(previewFields, token);
+                    const rawVal = hasKey ? previewFields[token] : item[fieldName];
+
+                    row[fieldName] = rawVal !== null && rawVal !== undefined ? rawVal : '';
+                });
+
+                return row;
+            });
         } catch (error) {
             this.errorMessage = this.reduceError(error);
         } finally {
@@ -103,8 +148,7 @@ export default class EmailMessageBackupWidget extends LightningElement {
             emailMessageId: row.id,
             emailMessageSubject: row.subject || '',
             previewFields: row.previewFields,
-            previewFieldUrls: row.previewFieldUrls,
-            previewTableColumns: row.previewTableColumns
+            previewFieldUrls: row.previewFieldUrls
         });
     }
 

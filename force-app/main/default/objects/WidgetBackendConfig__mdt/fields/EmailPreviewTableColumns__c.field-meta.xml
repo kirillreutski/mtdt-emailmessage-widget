@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>EmailPreviewTableColumns__c</fullName>
     <description>
-        Space/comma/semicolon/dot separated apiname fields to display in the email preview table.
+        Space/comma/semicolon/dot separated apiname fields to display in the main EmailMessage list table.
         `Subject` is always included regardless of this setting.
     </description>
     <externalId>false</externalId>
