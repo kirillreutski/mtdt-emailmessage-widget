@@ -1,5 +1,5 @@
 import { LightningElement, api } from 'lwc';
-import searchEmailMessages from '@salesforce/apex/EmailMessageBackupService.searchEmailMessages';
+import searchEmailMessages from '@salesforce/apex/EmailMessageBackupWidgetService.searchEmailMessages';
 
 const COLUMNS = [
     { label: 'Subject', fieldName: 'subject', type: 'text' },

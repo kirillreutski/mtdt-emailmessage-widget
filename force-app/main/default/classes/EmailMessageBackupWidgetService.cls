@@ -1,4 +1,4 @@
-public with sharing class EmailMessageBackupService {
+public with sharing class EmailMessageBackupWidgetService {
     private static final String SEARCH_PATH = '/sf-widget/record-backups/search';
     private static final Integer DEFAULT_LIMIT = 50;
     private static final Integer DEFAULT_OFFSET = 0;
@@ -71,7 +71,8 @@ public with sharing class EmailMessageBackupService {
         requestDto.offset = DEFAULT_OFFSET;
 
         HttpResponse response = sendRequest('POST', SEARCH_PATH, JSON.serialize(requestDto));
-        SearchResponseDto payload = (SearchResponseDto) JSON.deserialize(response.getBody(), SearchResponseDto.class);
+        SearchResponseDto payload =
+            (SearchResponseDto) JSON.deserialize(response.getBody(), SearchResponseDto.class);
         return mapRows(payload);
     }
 
@@ -81,8 +82,8 @@ public with sharing class EmailMessageBackupService {
             throw new AuraHandledException('emailMessageId is required');
         }
 
-        String path = '/sf-widget/record-backups/EmailMessage/' +
-            EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
+        String path =
+            '/sf-widget/record-backups/EmailMessage/' + EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
             '/versions';
         HttpResponse response = sendRequest('GET', path, null);
         return (VersionsResponseDto) JSON.deserialize(response.getBody(), VersionsResponseDto.class);
@@ -94,8 +95,8 @@ public with sharing class EmailMessageBackupService {
             throw new AuraHandledException('emailMessageId is required');
         }
 
-        String path = '/sf-widget/record-backups/EmailMessage/' +
-            EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
+        String path =
+            '/sf-widget/record-backups/EmailMessage/' + EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
             '/extensions/attachments';
         HttpResponse response = sendRequest('GET', path, null);
         return (AttachmentsResponseDto) JSON.deserialize(response.getBody(), AttachmentsResponseDto.class);
@@ -115,7 +116,8 @@ public with sharing class EmailMessageBackupService {
             row.toAddress = valueFromFields(item, 'ToAddress');
             row.messageDate = valueFromFields(item, 'MessageDate');
             row.status = valueFromFields(item, 'Status');
-            row.currentVersionNo = item != null && item.version != null ? item.version.current_version_no : null;
+            row.currentVersionNo =
+                item != null && item.version != null ? item.version.current_version_no : null;
             row.isDeleted = item != null && item.system != null ? item.system.is_deleted : null;
             rows.add(row);
         }
@@ -132,7 +134,9 @@ public with sharing class EmailMessageBackupService {
     private static HttpResponse sendRequest(String method, String path, String body) {
         WidgetBackendConfig__mdt config = WidgetBackendConfig__mdt.getInstance('Default');
         if (config == null || String.isBlank(config.BaseUrl__c) || String.isBlank(config.WidgetToken__c)) {
-            throw new AuraHandledException('Widget backend config is missing. Configure WidgetBackendConfig.Default custom metadata.');
+            throw new AuraHandledException(
+                'Widget backend config is missing. Configure WidgetBackendConfig.Default custom metadata.'
+            );
         }
 
         HttpRequest request = new HttpRequest();
@@ -150,7 +154,9 @@ public with sharing class EmailMessageBackupService {
 
         HttpResponse response = new Http().send(request);
         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-            throw new AuraHandledException('Widget backend request failed: ' + response.getStatusCode() + ' ' + response.getStatus());
+            throw new AuraHandledException(
+                'Widget backend request failed: ' + response.getStatusCode() + ' ' + response.getStatus()
+            );
         }
         return response;
     }

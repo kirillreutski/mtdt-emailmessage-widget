@@ -1,5 +1,5 @@
 @IsTest
-private class EmailMessageBackupServiceTest {
+private class EmailMessageBackupWidgetServiceTest {
     private class SuccessMock implements HttpCalloutMock {
         public HttpResponse respond(HttpRequest req) {
             HttpResponse res = new HttpResponse();
@@ -27,13 +27,24 @@ private class EmailMessageBackupServiceTest {
         }
     }
 
+    @TestSetup
+    static void setup() {
+        insert new WidgetBackendConfig__mdt(
+            DeveloperName = 'Default',
+            MasterLabel = 'Default',
+            BaseUrl__c = 'https://example.org',
+            WidgetToken__c = 'token-123',
+            TimeoutMs__c = 10000
+        );
+    }
+
     @IsTest
     static void searchEmailMessages_mapsFieldsAndHandlesResponse() {
         Test.setMock(HttpCalloutMock.class, new SuccessMock());
 
         Test.startTest();
-        List<EmailMessageBackupService.EmailMessageRow> rows =
-            EmailMessageBackupService.searchEmailMessages('500xx0000000001');
+        List<EmailMessageBackupWidgetService.EmailMessageRow> rows =
+            EmailMessageBackupWidgetService.searchEmailMessages('500xx0000000001');
         Test.stopTest();
 
         System.assertEquals(1, rows.size());
@@ -49,7 +60,7 @@ private class EmailMessageBackupServiceTest {
     @IsTest
     static void searchEmailMessages_throwsWhenIdMissing() {
         try {
-            EmailMessageBackupService.searchEmailMessages(null);
+            EmailMessageBackupWidgetService.searchEmailMessages(null);
             System.assert(false, 'Expected exception');
         } catch (AuraHandledException ex) {
             System.assert(ex.getMessage().contains('parentRecordId is required'));
@@ -61,10 +72,10 @@ private class EmailMessageBackupServiceTest {
         Test.setMock(HttpCalloutMock.class, new SuccessMock());
 
         Test.startTest();
-        EmailMessageBackupService.VersionsResponseDto versions =
-            EmailMessageBackupService.getEmailMessageVersions('02s123');
-        EmailMessageBackupService.AttachmentsResponseDto attachments =
-            EmailMessageBackupService.getEmailMessageAttachments('02s123');
+        EmailMessageBackupWidgetService.VersionsResponseDto versions =
+            EmailMessageBackupWidgetService.getEmailMessageVersions('02s123');
+        EmailMessageBackupWidgetService.AttachmentsResponseDto attachments =
+            EmailMessageBackupWidgetService.getEmailMessageAttachments('02s123');
         Test.stopTest();
 
         System.assertNotEquals(null, versions);
@@ -75,7 +86,7 @@ private class EmailMessageBackupServiceTest {
     static void calloutErrors_areSurfaced() {
         Test.setMock(HttpCalloutMock.class, new ErrorMock());
         try {
-            EmailMessageBackupService.searchEmailMessages('500xx0000000001');
+            EmailMessageBackupWidgetService.searchEmailMessages('500xx0000000001');
             System.assert(false, 'Expected exception');
         } catch (AuraHandledException ex) {
             System.assert(ex.getMessage().contains('Widget backend request failed'));
