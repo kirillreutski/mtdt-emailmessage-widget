@@ -2,6 +2,7 @@ import { api } from 'lwc';
 import LightningModal from 'lightning/modal';
 import getEmailMessageVersions from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageVersions';
 import getEmailMessageAttachments from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageAttachments';
+import { reduceError } from 'c/emailMessageUtils';
 
 export default class EmailMessagePreviewModal extends LightningModal {
     @api emailMessageId;
@@ -147,19 +148,6 @@ export default class EmailMessagePreviewModal extends LightningModal {
 
     get hasAttachments() {
         return Array.isArray(this.attachments) && this.attachments.length > 0;
-    }
-
-    reduceError(error) {
-        if (!error) {
-            return 'Unknown error';
-        }
-        if (Array.isArray(error.body)) {
-            return error.body.map((entry) => entry.message).join(', ');
-        }
-        if (error.body && error.body.message) {
-            return error.body.message;
-        }
-        return error.message || 'Unknown error';
     }
 }
 

@@ -1,6 +1,7 @@
 import { LightningElement, api } from 'lwc';
 import searchEmailMessages from '@salesforce/apex/EmailMessageBackupWidgetService.searchEmailMessages';
 import EmailMessagePreviewModal from 'c/emailMessagePreviewModal';
+import { reduceError } from 'c/emailMessageUtils';
 
 const SUBJECT_COLUMN = {
     label: 'Subject',
@@ -151,17 +152,5 @@ export default class EmailMessageBackupWidget extends LightningElement {
             previewFieldUrls: row.previewFieldUrls
         });
     }
-
-    reduceError(error) {
-        if (!error) {
-            return 'Unknown error';
-        }
-        if (Array.isArray(error.body)) {
-            return error.body.map((entry) => entry.message).join(', ');
-        }
-        if (error.body && error.body.message) {
-            return error.body.message;
-        }
-        return error.message || 'Unknown error';
-    }
 }
+

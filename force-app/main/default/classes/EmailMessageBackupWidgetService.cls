@@ -3,9 +3,6 @@ public with sharing class EmailMessageBackupWidgetService {
     private static final Integer DEFAULT_LIMIT = 50;
     private static final Integer DEFAULT_OFFSET = 0;
 
-    private static String cachedUserId;
-    private static String cachedProfileId;
-
     public class EmailMessageRow {
         @AuraEnabled public String id;
         @AuraEnabled public String subject;
@@ -346,17 +343,10 @@ public with sharing class EmailMessageBackupWidgetService {
     }
 
     private static String getCurrentUserId() {
-        if (cachedUserId == null) {
-            cachedUserId = String.valueOf(UserInfo.getUserId());
-        }
-        return cachedUserId;
+        return String.valueOf(UserInfo.getUserId());
     }
 
     private static String getCurrentProfileId() {
-        if (cachedProfileId != null) {
-            return cachedProfileId;
-        }
-
         try {
             User u = [
                 SELECT ProfileId
@@ -364,11 +354,10 @@ public with sharing class EmailMessageBackupWidgetService {
                 WHERE Id = :UserInfo.getUserId()
                 LIMIT 1
             ];
-            cachedProfileId = u.ProfileId != null ? String.valueOf(u.ProfileId) : '';
+            return u.ProfileId != null ? String.valueOf(u.ProfileId) : '';
         } catch (Exception e) {
             // Fail soft: still attempt the callout even if profile id lookup fails.
-            cachedProfileId = '';
+            return '';
         }
-        return cachedProfileId;
     }
 }
