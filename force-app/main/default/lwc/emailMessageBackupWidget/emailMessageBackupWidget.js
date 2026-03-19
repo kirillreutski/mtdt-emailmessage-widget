@@ -69,7 +69,8 @@ export default class EmailMessageBackupWidget extends LightningElement {
                 toAddress: item.toAddress || '',
                 messageDate: item.messageDate || '',
                 status: item.status || '',
-                previewFields: item.previewFields || {}
+                previewFields: item.previewFields || {},
+                previewFieldUrls: item.previewFieldUrls || {}
             }));
         } catch (error) {
             this.errorMessage = this.reduceError(error);
@@ -108,7 +109,7 @@ export default class EmailMessageBackupWidget extends LightningElement {
     openEmailPreviewModal(row) {
         this.selectedEmailId = row.id;
         this.selectedEmailSubject = row.subject || '';
-        this.previewEntries = this.toPreviewEntries(row.previewFields);
+        this.previewEntries = this.toPreviewEntries(row.previewFields, row.previewFieldUrls);
         this.versionsCount = 0;
         this.attachments = [];
         this.modalErrorMessage = '';
@@ -143,11 +144,14 @@ export default class EmailMessageBackupWidget extends LightningElement {
         this.attachments = [];
     }
 
-    toPreviewEntries(previewFields) {
+    toPreviewEntries(previewFields, previewFieldUrls) {
         const fieldsObj = previewFields || {};
+        const urlsObj = previewFieldUrls || {};
         const entries = Object.keys(fieldsObj).map((key) => ({
             key,
-            value: fieldsObj[key]
+            value: fieldsObj[key],
+            url: urlsObj[key] || '',
+            hasUrl: urlsObj[key] ? true : false
         }));
 
         // Prefer the most important keys on top.

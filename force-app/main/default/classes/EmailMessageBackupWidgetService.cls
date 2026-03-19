@@ -14,6 +14,8 @@ public with sharing class EmailMessageBackupWidgetService {
         @AuraEnabled public Boolean isDeleted;
         // Used by the LWC modal to show a full preview of the backend EmailMessage fields.
         @AuraEnabled public Map<String, String> previewFields;
+        // For specific reference fields (e.g., ParentId), provide URL like `/<id>` for the LWC.
+        @AuraEnabled public Map<String, String> previewFieldUrls;
     }
 
     public class SearchResponseDto {
@@ -140,7 +142,10 @@ public with sharing class EmailMessageBackupWidgetService {
                 item != null && item.version != null ? item.version.current_version_no : null;
             row.isDeleted =
                 item != null && item.systemDto != null ? item.systemDto.is_deleted : null;
-            row.previewFields = item != null && item.fields != null ? item.fields : new Map<String, String>();
+            row.previewFields =
+                item != null && item.fields != null ? item.fields : new Map<String, String>();
+            row.previewFieldUrls = new Map<String, String>();
+            enrichPreviewReferenceFields(row.previewFields, row.previewFieldUrls);
             rows.add(row);
         }
         return rows;
@@ -151,6 +156,87 @@ public with sharing class EmailMessageBackupWidgetService {
             return '';
         }
         return item.fields.get(key);
+    }
+
+    private static void enrichPreviewReferenceFields(
+        Map<String, String> previewFields,
+        Map<String, String> previewFieldUrls
+    ) {
+        if (previewFields == null || previewFields.isEmpty()) {
+            return;
+        }
+
+        // These keys come from backend `items[].fields` and can store Salesforce reference IDs.
+        enrichReferenceId(previewFields, previewFieldUrls, 'ActivityId');
+        enrichReferenceId(previewFields, previewFieldUrls, 'CreatedById');
+        enrichReferenceId(previewFields, previewFieldUrls, 'LastModifiedById');
+        enrichReferenceId(previewFields, previewFieldUrls, 'ParentId');
+        enrichReferenceId(previewFields, previewFieldUrls, 'RelatedToId');
+    }
+
+    private static void enrichReferenceId(
+        Map<String, String> previewFields,
+        Map<String, String> previewFieldUrls,
+        String fieldKey
+    ) {
+        if (!previewFields.containsKey(fieldKey)) {
+            return;
+        }
+
+        String refId = previewFields.get(fieldKey);
+        if (String.isBlank(refId)) {
+            return;
+        }
+
+        SObject sobj = getSObjectById(refId);
+        if (sobj == null) {
+            return;
+        }
+
+        String nameValue;
+        try {
+            nameValue = (String) sobj.get('Name');
+        } catch (Exception e) {
+            nameValue = null;
+        }
+        if (String.isBlank(nameValue)) {
+            nameValue = refId;
+        }
+
+        // Replace the raw Id with the Name for better UX.
+        previewFields.put(fieldKey, nameValue);
+        // LWC will render a link with `/<id>` which Salesforce will open in a new tab.
+        previewFieldUrls.put(fieldKey, '/' + refId);
+    }
+
+    // Helper: return the SObject by Id (or null if invalid/unqueryable).
+    private static SObject getSObjectById(String recordId) {
+        if (String.isBlank(recordId)) {
+            return null;
+        }
+
+        Id recordIdTyped;
+        try {
+            recordIdTyped = (Id) recordId;
+        } catch (Exception e) {
+            return null;
+        }
+
+        Schema.SObjectType sType = recordIdTyped.getSObjectType();
+        Schema.DescribeSObjectResult describe = sType.getDescribe();
+        Boolean hasName = describe.fields.getMap().containsKey('Name');
+
+        String sObjectName = describe.getName();
+        String soql = hasName
+            ? 'SELECT Name FROM ' + sObjectName + ' WHERE Id = :recordIdTyped LIMIT 1'
+            : 'SELECT Id FROM ' + sObjectName + ' WHERE Id = :recordIdTyped LIMIT 1';
+
+        try {
+            List<SObject> results = Database.query(soql);
+            return results.isEmpty() ? null : results[0];
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static HttpResponse sendRequest(String method, String path, String body) {

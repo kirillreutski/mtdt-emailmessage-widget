@@ -75,7 +75,14 @@
                             <template for:each={previewEntries} for:item="entry">
                                 <div key={entry.key} class="preview-row">
                                     <div class="preview-key">{entry.key}</div>
-                                    <div class="preview-value">{entry.value}</div>
+                                    <div class="preview-value">
+                                        <template if:true={entry.hasUrl}>
+                                            <a href={entry.url} target="_blank">{entry.value}</a>
+                                        </template>
+                                        <template if:false={entry.hasUrl}>
+                                            {entry.value}
+                                        </template>
+                                    </div>
                                 </div>
                             </template>
                         </div>
