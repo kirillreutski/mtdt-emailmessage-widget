@@ -14,4 +14,8 @@
         <field>TimeoutMs__c</field>
         <value xsi:type="xsd:double">10000</value>
     </values>
+    <values>
+        <field>EmailPreviewTableColumns__c</field>
+        <value xsi:type="xsd:string">Subject MessageDate Status</value>
+    </values>
 </CustomMetadata>

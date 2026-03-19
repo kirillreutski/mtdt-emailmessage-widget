@@ -3,6 +3,9 @@ public with sharing class EmailMessageBackupWidgetService {
     private static final Integer DEFAULT_LIMIT = 50;
     private static final Integer DEFAULT_OFFSET = 0;
 
+    private static String cachedUserId;
+    private static String cachedProfileId;
+
     public class EmailMessageRow {
         @AuraEnabled public String id;
         @AuraEnabled public String subject;
@@ -16,6 +19,9 @@ public with sharing class EmailMessageBackupWidgetService {
         @AuraEnabled public Map<String, String> previewFields;
         // For specific reference fields (e.g., ParentId), provide URL like `/<id>` for the LWC.
         @AuraEnabled public Map<String, String> previewFieldUrls;
+        // Configured list of keys to show in the bottom preview table in the modal.
+        // `Subject` is always included.
+        @AuraEnabled public List<String> previewTableColumns;
     }
 
     public class SearchResponseDto {
@@ -89,7 +95,8 @@ public with sharing class EmailMessageBackupWidgetService {
             normalizeResponseJson(response.getBody()),
             SearchResponseDto.class
         );
-        return mapRows(payload);
+        List<String> previewTableColumns = getConfiguredPreviewTableColumns();
+        return mapRows(payload, previewTableColumns);
     }
 
     @AuraEnabled(cacheable=false)
@@ -124,7 +131,7 @@ public with sharing class EmailMessageBackupWidgetService {
         );
     }
 
-    private static List<EmailMessageRow> mapRows(SearchResponseDto payload) {
+    private static List<EmailMessageRow> mapRows(SearchResponseDto payload, List<String> previewTableColumns) {
         List<EmailMessageRow> rows = new List<EmailMessageRow>();
         if (payload == null || payload.items == null) {
             return rows;
@@ -146,6 +153,8 @@ public with sharing class EmailMessageBackupWidgetService {
                 item != null && item.fields != null ? item.fields : new Map<String, String>();
             row.previewFieldUrls = new Map<String, String>();
             enrichPreviewReferenceFields(row.previewFields, row.previewFieldUrls);
+            row.previewTableColumns =
+                previewTableColumns != null ? previewTableColumns : new List<String>();
             rows.add(row);
         }
         return rows;
@@ -156,6 +165,50 @@ public with sharing class EmailMessageBackupWidgetService {
             return '';
         }
         return item.fields.get(key);
+    }
+
+    private static List<String> getConfiguredPreviewTableColumns() {
+        // Field is optional; fall back to Subject-only.
+        WidgetBackendConfig__mdt config = WidgetBackendConfig__mdt.getInstance('Default');
+        String raw = config != null ? config.EmailPreviewTableColumns__c : null;
+        return parsePreviewTableColumns(raw);
+    }
+
+    private static List<String> parsePreviewTableColumns(String raw) {
+        // Subject is always present regardless of configuration.
+        List<String> result = new List<String>();
+        Set<String> seen = new Set<String>();
+        addColumn(result, seen, 'Subject');
+
+        if (String.isBlank(raw)) {
+            return result;
+        }
+
+        // Delimiters: whitespace, comma, dot, semicolon.
+        // Using a regex split handles newlines as well.
+        for (String token : raw.split('[\\s,.;]+')) {
+            if (token == null) {
+                continue;
+            }
+            String cleaned = token.trim();
+            if (String.isBlank(cleaned)) {
+                continue;
+            }
+            addColumn(result, seen, cleaned);
+        }
+
+        return result;
+    }
+
+    private static void addColumn(List<String> columns, Set<String> seen, String columnKey) {
+        if (String.isBlank(columnKey)) {
+            return;
+        }
+        if (seen.contains(columnKey)) {
+            return;
+        }
+        columns.add(columnKey);
+        seen.add(columnKey);
     }
 
     private static void enrichPreviewReferenceFields(
@@ -251,6 +304,9 @@ public with sharing class EmailMessageBackupWidgetService {
         request.setMethod(method);
         request.setEndpoint(buildUrl(config.BaseUrl__c, path));
         request.setHeader('Authorization', 'Bearer ' + config.WidgetToken__c);
+        // User context headers for backend auditing/authorization.
+        request.setHeader('x-user-id', getCurrentUserId());
+        request.setHeader('x-profile-id', getCurrentProfileId());
         request.setHeader('Content-Type', 'application/json');
         request.setHeader('Accept', 'application/json');
         Integer timeoutMs = config.TimeoutMs__c == null ? 10000 : Integer.valueOf(config.TimeoutMs__c);
@@ -287,5 +343,32 @@ public with sharing class EmailMessageBackupWidgetService {
         normalized = normalized.replace('"limit"', '"limitValue"');
         normalized = normalized.replace('"offset"', '"offsetValue"');
         return normalized;
+    }
+
+    private static String getCurrentUserId() {
+        if (cachedUserId == null) {
+            cachedUserId = String.valueOf(UserInfo.getUserId());
+        }
+        return cachedUserId;
+    }
+
+    private static String getCurrentProfileId() {
+        if (cachedProfileId != null) {
+            return cachedProfileId;
+        }
+
+        try {
+            User u = [
+                SELECT ProfileId
+                FROM User
+                WHERE Id = :UserInfo.getUserId()
+                LIMIT 1
+            ];
+            cachedProfileId = u.ProfileId != null ? String.valueOf(u.ProfileId) : '';
+        } catch (Exception e) {
+            // Fail soft: still attempt the callout even if profile id lookup fails.
+            cachedProfileId = '';
+        }
+        return cachedProfileId;
     }
 }

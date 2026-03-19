@@ -60,7 +60,8 @@ export default class EmailMessageBackupWidget extends LightningElement {
                 messageDate: item.messageDate || '',
                 status: item.status || '',
                 previewFields: item.previewFields || {},
-                previewFieldUrls: item.previewFieldUrls || {}
+                previewFieldUrls: item.previewFieldUrls || {},
+                previewTableColumns: item.previewTableColumns || []
             }));
         } catch (error) {
             this.errorMessage = this.reduceError(error);
@@ -102,7 +103,8 @@ export default class EmailMessageBackupWidget extends LightningElement {
             emailMessageId: row.id,
             emailMessageSubject: row.subject || '',
             previewFields: row.previewFields,
-            previewFieldUrls: row.previewFieldUrls
+            previewFieldUrls: row.previewFieldUrls,
+            previewTableColumns: row.previewTableColumns
         });
     }
 

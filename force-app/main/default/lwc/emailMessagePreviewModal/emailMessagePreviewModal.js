@@ -8,6 +8,7 @@ export default class EmailMessagePreviewModal extends LightningModal {
     @api emailMessageSubject;
     @api previewFields;
     @api previewFieldUrls;
+    @api previewTableColumns;
 
     modalIsLoading = true;
     modalErrorMessage = '';
@@ -16,9 +17,60 @@ export default class EmailMessagePreviewModal extends LightningModal {
     attachments = [];
     previewEntries = [];
 
+    fromAddress = '';
+    toAddress = '';
+    ccAddress = '';
+    bccAddress = '';
+    htmlBody = '';
+    textBody = '';
+
     connectedCallback() {
-        this.previewEntries = this.toPreviewEntries(this.previewFields, this.previewFieldUrls);
+        this.buildPreviewModel();
         this.loadDetails();
+    }
+
+    buildPreviewModel() {
+        const fieldsObj = this.previewFields || {};
+
+        this.fromAddress = this.getFirstField(fieldsObj, ['FromAddress']);
+        this.toAddress = this.getFirstField(fieldsObj, ['ToAddress']);
+        this.ccAddress = this.getFirstField(fieldsObj, ['CcAddress', 'CCAddress']);
+        this.bccAddress = this.getFirstField(fieldsObj, ['BccAddress', 'BCCAddress']);
+
+        this.htmlBody = this.getFirstField(fieldsObj, ['HtmlBody', 'HTMLBody']);
+        this.textBody = this.getFirstField(fieldsObj, ['TextBody', 'TextBodyPlain', 'PlainTextBody']);
+
+        const excludeKeys = new Set([
+            'FromAddress',
+            'ToAddress',
+            'CcAddress',
+            'BccAddress',
+            'CCAddress',
+            'BCCAddress',
+            'HtmlBody',
+            'HTMLBody',
+            'TextBody',
+            'TextBodyPlain',
+            'PlainTextBody'
+        ]);
+        const allowedColumns = new Set(this.previewTableColumns || []);
+        allowedColumns.add('Subject'); // Subject is always displayed in the table
+        this.previewEntries = this.toPreviewEntries(
+            this.previewFields,
+            this.previewFieldUrls,
+            excludeKeys,
+            allowedColumns
+        );
+    }
+
+    getFirstField(fieldsObj, keys) {
+        for (const key of keys) {
+            const v = fieldsObj ? fieldsObj[key] : null;
+            if (v !== null && v !== undefined && v !== '') {
+                return String(v);
+            }
+        }
+        return '';
     }
 
     async loadDetails() {
@@ -53,14 +105,17 @@ export default class EmailMessagePreviewModal extends LightningModal {
         this.close();
     }
 
-    toPreviewEntries(previewFields, previewFieldUrls) {
+    toPreviewEntries(previewFields, previewFieldUrls, excludeKeys, allowedColumns) {
         const fieldsObj = previewFields || {};
         const urlsObj = previewFieldUrls || {};
+        const exclude = excludeKeys || new Set();
+        const allowed = allowedColumns || new Set();
         const entries = Object.keys(fieldsObj).map((key) => ({
             key,
             value: fieldsObj[key],
             url: urlsObj[key] || '',
-            hasUrl: urlsObj[key] ? true : false
+            hasUrl: urlsObj[key] ? true : false,
+            excluded: exclude.has(key)
         }));
 
         const preferredOrder = ['Subject', 'FromAddress', 'ToAddress', 'MessageDate', 'Status'];
@@ -73,7 +128,10 @@ export default class EmailMessagePreviewModal extends LightningModal {
             return a.key.localeCompare(b.key);
         });
 
-        return entries.filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
+        return entries
+            .filter((e) => !e.excluded)
+            .filter((e) => allowed.has(e.key))
+            .filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
     }
 
     normalizeAttachments(attachmentsResponse) {

@@ -13,7 +13,44 @@
         <template if:false={modalIsLoading}>
             <div class="slds-m-bottom_medium">
                 <div class="subject-title">{emailMessageSubject}</div>
+
+                <div class="top-grid slds-box slds-m-top_medium">
+                    <div class="top-row">
+                        <div class="top-key">From</div>
+                        <div class="top-value">{fromAddress}</div>
+                    </div>
+                    <div class="top-row">
+                        <div class="top-key">To</div>
+                        <div class="top-value">{toAddress}</div>
+                    </div>
+                    <template if:true={ccAddress}>
+                        <div class="top-row">
+                            <div class="top-key">CC</div>
+                            <div class="top-value">{ccAddress}</div>
+                        </div>
+                    </template>
+                    <template if:true={bccAddress}>
+                        <div class="top-row">
+                            <div class="top-key">BCC</div>
+                            <div class="top-value">{bccAddress}</div>
+                        </div>
+                    </template>
+                </div>
             </div>
+
+            <template if:true={htmlBody}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <div class="section-title">HTML Body</div>
+                    <lightning-formatted-rich-text value={htmlBody}></lightning-formatted-rich-text>
+                </div>
+            </template>
+
+            <template if:true={textBody}>
+                <div class="slds-box slds-m-bottom_medium">
+                    <div class="section-title">Text Body</div>
+                    <pre class="body-pre">{textBody}</pre>
+                </div>
+            </template>
 
             <div class="preview-grid slds-box slds-m-bottom_medium">
                 <template for:each={previewEntries} for:item="entry">

@@ -3,6 +3,43 @@
     word-break: break-word;
 }
 
+.top-grid {
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.top-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-top: 1px solid #f3f3f3;
+}
+
+.top-row:first-child {
+    border-top: none;
+}
+
+.top-key {
+    color: #706e6b;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.top-value {
+    word-break: break-word;
+}
+
+.section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.body-pre {
+    white-space: pre-wrap;
+}
+
 .preview-grid {
     border: 1px solid #e5e5e5;
     border-radius: 0.25rem;
