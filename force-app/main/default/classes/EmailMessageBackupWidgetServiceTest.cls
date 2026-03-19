@@ -44,6 +44,7 @@ private class EmailMessageBackupWidgetServiceTest {
         System.assertEquals('New', rows[0].status);
         System.assertEquals(5, rows[0].currentVersionNo);
         System.assertEquals(false, rows[0].isDeleted);
+        System.assertEquals('Subj', rows[0].previewFields.get('Subject'));
     }
 
     @IsTest

@@ -12,6 +12,8 @@ public with sharing class EmailMessageBackupWidgetService {
         @AuraEnabled public String status;
         @AuraEnabled public Integer currentVersionNo;
         @AuraEnabled public Boolean isDeleted;
+        // Used by the LWC modal to show a full preview of the backend EmailMessage fields.
+        @AuraEnabled public Map<String, String> previewFields;
     }
 
     public class SearchResponseDto {
@@ -24,33 +26,42 @@ public with sharing class EmailMessageBackupWidgetService {
         public Integer offsetValue;
     }
 
-    public class BackupItemDto {
-        public String id;
+    public class SearchRequestDto {
+        // NOTE: Field names intentionally avoid Apex reserved words.
+        // We normalize JSON keys after serialization.
         public String sObjectType;
-        public Map<String, Object> fields;
-        public SystemDto systemDto;
-        public VersionDto version;
+        public String ParentId;
+        public Integer limitValue;
+        public Integer offsetValue;
+    }
+
+    public class BackupItemDto {
+        @AuraEnabled public String id;
+        @AuraEnabled public String sObjectType;
+        @AuraEnabled public Map<String, String> fields;
+        @AuraEnabled public SystemDto systemDto;
+        @AuraEnabled public VersionDto version;
     }
 
     public class SystemDto {
-        public Boolean is_deleted;
-        public Integer backup_run_id;
+        @AuraEnabled public Boolean is_deleted;
+        @AuraEnabled public Integer backup_run_id;
     }
 
     public class VersionDto {
-        public Integer current_version_no;
+        @AuraEnabled public Integer current_version_no;
     }
 
     public class VersionsResponseDto {
-        public String sObjectType;
-        public String data_backup_id;
-        public List<BackupItemDto> items;
+        @AuraEnabled public String sObjectType;
+        @AuraEnabled public String data_backup_id;
+        @AuraEnabled public List<BackupItemDto> items;
     }
 
     public class AttachmentsResponseDto {
-        public String sObjectType;
-        public String data_backup_id;
-        public List<BackupItemDto> items;
+        @AuraEnabled public String sObjectType;
+        @AuraEnabled public String data_backup_id;
+        @AuraEnabled public List<BackupItemDto> items;
     }
 
     @AuraEnabled(cacheable=false)
@@ -59,14 +70,19 @@ public with sharing class EmailMessageBackupWidgetService {
             throw new AuraHandledException('parentRecordId is required');
         }
 
-        // Build request body using correct backend JSON keys.
-        Map<String, Object> requestBody = new Map<String, Object>();
-        requestBody.put('sObject', 'EmailMessage');
-        requestBody.put('ParentId', parentRecordId);
-        requestBody.put('limit', DEFAULT_LIMIT);
-        requestBody.put('offset', DEFAULT_OFFSET);
+        // Build request body without using Apex `Object` in JSON.
+        SearchRequestDto requestDto = new SearchRequestDto();
+        requestDto.sObjectType = 'EmailMessage';
+        requestDto.ParentId = parentRecordId;
+        requestDto.limitValue = DEFAULT_LIMIT;
+        requestDto.offsetValue = DEFAULT_OFFSET;
 
-        HttpResponse response = sendRequest('POST', SEARCH_PATH, JSON.serialize(requestBody));
+        String requestBody = JSON.serialize(requestDto);
+        requestBody = requestBody.replace('"sObjectType"', '"sObject"');
+        requestBody = requestBody.replace('"limitValue"', '"limit"');
+        requestBody = requestBody.replace('"offsetValue"', '"offset"');
+
+        HttpResponse response = sendRequest('POST', SEARCH_PATH, requestBody);
         SearchResponseDto payload = (SearchResponseDto) JSON.deserialize(
             normalizeResponseJson(response.getBody()),
             SearchResponseDto.class
@@ -124,6 +140,7 @@ public with sharing class EmailMessageBackupWidgetService {
                 item != null && item.version != null ? item.version.current_version_no : null;
             row.isDeleted =
                 item != null && item.systemDto != null ? item.systemDto.is_deleted : null;
+            row.previewFields = item != null && item.fields != null ? item.fields : new Map<String, String>();
             rows.add(row);
         }
         return rows;
@@ -133,7 +150,7 @@ public with sharing class EmailMessageBackupWidgetService {
         if (item == null || item.fields == null || !item.fields.containsKey(key) || item.fields.get(key) == null) {
             return '';
         }
-        return String.valueOf(item.fields.get(key));
+        return item.fields.get(key);
     }
 
     private static HttpResponse sendRequest(String method, String path, String body) {

@@ -1,8 +1,19 @@
 import { LightningElement, api } from 'lwc';
 import searchEmailMessages from '@salesforce/apex/EmailMessageBackupWidgetService.searchEmailMessages';
+import getEmailMessageVersions from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageVersions';
+import getEmailMessageAttachments from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageAttachments';
 
 const COLUMNS = [
-    { label: 'Subject', fieldName: 'subject', type: 'text' },
+    {
+        label: 'Subject',
+        fieldName: 'subject',
+        type: 'button',
+        typeAttributes: {
+            label: { fieldName: 'subject' },
+            name: 'preview',
+            variant: 'base'
+        }
+    },
     { label: 'FromAddress', fieldName: 'fromAddress', type: 'text' },
     { label: 'ToAddress', fieldName: 'toAddress', type: 'text' },
     { label: 'MessageDate', fieldName: 'messageDate', type: 'text' },
@@ -16,7 +27,16 @@ export default class EmailMessageBackupWidget extends LightningElement {
     rows = [];
     errorMessage = '';
     isLoading = false;
-    selectedEmailMessageId = null;
+    hideCheckboxColumnValue = true;
+
+    isModalOpen = false;
+    modalErrorMessage = '';
+    modalIsLoading = false;
+    selectedEmailId = null;
+    selectedEmailSubject = '';
+    previewEntries = [];
+    versionsCount = 0;
+    attachments = [];
 
     @api
     get recordId() {
@@ -48,7 +68,8 @@ export default class EmailMessageBackupWidget extends LightningElement {
                 fromAddress: item.fromAddress || '',
                 toAddress: item.toAddress || '',
                 messageDate: item.messageDate || '',
-                status: item.status || ''
+                status: item.status || '',
+                previewFields: item.previewFields || {}
             }));
         } catch (error) {
             this.errorMessage = this.reduceError(error);
@@ -61,9 +82,15 @@ export default class EmailMessageBackupWidget extends LightningElement {
         this.loadRows();
     }
 
-    handleRowSelection(event) {
-        const selectedRows = event.detail.selectedRows || [];
-        this.selectedEmailMessageId = selectedRows.length ? selectedRows[0].id : null;
+    handleRowAction(event) {
+        const actionName = event.detail.action && event.detail.action.name;
+        const row = event.detail.row;
+        if (!actionName || !row) {
+            return;
+        }
+        if (actionName === 'preview') {
+            this.openEmailPreviewModal(row);
+        }
     }
 
     get hasRows() {
@@ -74,16 +101,90 @@ export default class EmailMessageBackupWidget extends LightningElement {
         return !this.isLoading && !this.errorMessage && !this.hasRows;
     }
 
-    get extensionHint() {
-        if (!this.selectedEmailMessageId) {
-            return 'Выберите строку, чтобы в следующем шаге подключить версии и attachments.';
-        }
-        return `Точка расширения: selectedEmailMessageId = ${this.selectedEmailMessageId}`;
+    get hideCheckboxColumn() {
+        return this.hideCheckboxColumnValue;
     }
 
-    get hideCheckboxColumn() {
-        // Keep checkbox visible for single-row selection.
-        return false;
+    openEmailPreviewModal(row) {
+        this.selectedEmailId = row.id;
+        this.selectedEmailSubject = row.subject || '';
+        this.previewEntries = this.toPreviewEntries(row.previewFields);
+        this.versionsCount = 0;
+        this.attachments = [];
+        this.modalErrorMessage = '';
+        this.isModalOpen = true;
+        this.modalIsLoading = true;
+
+        Promise.all([
+            getEmailMessageVersions({ emailMessageId: this.selectedEmailId }),
+            getEmailMessageAttachments({ emailMessageId: this.selectedEmailId })
+        ])
+            .then(([versions, attachmentsResponse]) => {
+                this.versionsCount =
+                    versions && Array.isArray(versions.items) ? versions.items.length : 0;
+                this.attachments = this.normalizeAttachments(attachmentsResponse);
+            })
+            .catch((error) => {
+                this.modalErrorMessage = this.reduceError(error);
+            })
+            .finally(() => {
+                this.modalIsLoading = false;
+            });
+    }
+
+    closeModal() {
+        this.isModalOpen = false;
+        this.modalErrorMessage = '';
+        this.modalIsLoading = false;
+        this.selectedEmailId = null;
+        this.selectedEmailSubject = '';
+        this.previewEntries = [];
+        this.versionsCount = 0;
+        this.attachments = [];
+    }
+
+    toPreviewEntries(previewFields) {
+        const fieldsObj = previewFields || {};
+        const entries = Object.keys(fieldsObj).map((key) => ({
+            key,
+            value: fieldsObj[key]
+        }));
+
+        // Prefer the most important keys on top.
+        const preferredOrder = ['Subject', 'FromAddress', 'ToAddress', 'MessageDate', 'Status'];
+        entries.sort((a, b) => {
+            const ai = preferredOrder.indexOf(a.key);
+            const bi = preferredOrder.indexOf(b.key);
+            const aRank = ai === -1 ? 999 : ai;
+            const bRank = bi === -1 ? 999 : bi;
+            if (aRank !== bRank) return aRank - bRank;
+            return a.key.localeCompare(b.key);
+        });
+
+        return entries.filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
+    }
+
+    normalizeAttachments(attachmentsResponse) {
+        const items = attachmentsResponse && Array.isArray(attachmentsResponse.items) ? attachmentsResponse.items : [];
+        return items.map((item) => {
+            const fields = item.fields || {};
+            return {
+                id: item.id,
+                fields,
+                fieldsEntries: this.toFieldsEntries(fields)
+            };
+        });
+    }
+
+    toFieldsEntries(fieldsObj) {
+        const obj = fieldsObj || {};
+        return Object.keys(obj)
+            .map((key) => ({ key, value: obj[key] }))
+            .filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
+    }
+
+    get hasAttachments() {
+        return Array.isArray(this.attachments) && this.attachments.length > 0;
     }
 
     reduceError(error) {
