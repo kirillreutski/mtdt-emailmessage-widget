@@ -1,7 +1,6 @@
 import { LightningElement, api } from 'lwc';
 import searchEmailMessages from '@salesforce/apex/EmailMessageBackupWidgetService.searchEmailMessages';
-import getEmailMessageVersions from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageVersions';
-import getEmailMessageAttachments from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageAttachments';
+import EmailMessagePreviewModal from 'c/emailMessagePreviewModal';
 
 const COLUMNS = [
     {
@@ -28,15 +27,6 @@ export default class EmailMessageBackupWidget extends LightningElement {
     errorMessage = '';
     isLoading = false;
     hideCheckboxColumnValue = true;
-
-    isModalOpen = false;
-    modalErrorMessage = '';
-    modalIsLoading = false;
-    selectedEmailId = null;
-    selectedEmailSubject = '';
-    previewEntries = [];
-    versionsCount = 0;
-    attachments = [];
 
     @api
     get recordId() {
@@ -90,7 +80,7 @@ export default class EmailMessageBackupWidget extends LightningElement {
             return;
         }
         if (actionName === 'preview') {
-            this.openEmailPreviewModal(row);
+            this.openEmailPreview(row);
         }
     }
 
@@ -106,89 +96,14 @@ export default class EmailMessageBackupWidget extends LightningElement {
         return this.hideCheckboxColumnValue;
     }
 
-    openEmailPreviewModal(row) {
-        this.selectedEmailId = row.id;
-        this.selectedEmailSubject = row.subject || '';
-        this.previewEntries = this.toPreviewEntries(row.previewFields, row.previewFieldUrls);
-        this.versionsCount = 0;
-        this.attachments = [];
-        this.modalErrorMessage = '';
-        this.isModalOpen = true;
-        this.modalIsLoading = true;
-
-        Promise.all([
-            getEmailMessageVersions({ emailMessageId: this.selectedEmailId }),
-            getEmailMessageAttachments({ emailMessageId: this.selectedEmailId })
-        ])
-            .then(([versions, attachmentsResponse]) => {
-                this.versionsCount =
-                    versions && Array.isArray(versions.items) ? versions.items.length : 0;
-                this.attachments = this.normalizeAttachments(attachmentsResponse);
-            })
-            .catch((error) => {
-                this.modalErrorMessage = this.reduceError(error);
-            })
-            .finally(() => {
-                this.modalIsLoading = false;
-            });
-    }
-
-    closeModal() {
-        this.isModalOpen = false;
-        this.modalErrorMessage = '';
-        this.modalIsLoading = false;
-        this.selectedEmailId = null;
-        this.selectedEmailSubject = '';
-        this.previewEntries = [];
-        this.versionsCount = 0;
-        this.attachments = [];
-    }
-
-    toPreviewEntries(previewFields, previewFieldUrls) {
-        const fieldsObj = previewFields || {};
-        const urlsObj = previewFieldUrls || {};
-        const entries = Object.keys(fieldsObj).map((key) => ({
-            key,
-            value: fieldsObj[key],
-            url: urlsObj[key] || '',
-            hasUrl: urlsObj[key] ? true : false
-        }));
-
-        // Prefer the most important keys on top.
-        const preferredOrder = ['Subject', 'FromAddress', 'ToAddress', 'MessageDate', 'Status'];
-        entries.sort((a, b) => {
-            const ai = preferredOrder.indexOf(a.key);
-            const bi = preferredOrder.indexOf(b.key);
-            const aRank = ai === -1 ? 999 : ai;
-            const bRank = bi === -1 ? 999 : bi;
-            if (aRank !== bRank) return aRank - bRank;
-            return a.key.localeCompare(b.key);
+    async openEmailPreview(row) {
+        await EmailMessagePreviewModal.open({
+            size: 'large',
+            emailMessageId: row.id,
+            emailMessageSubject: row.subject || '',
+            previewFields: row.previewFields,
+            previewFieldUrls: row.previewFieldUrls
         });
-
-        return entries.filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
-    }
-
-    normalizeAttachments(attachmentsResponse) {
-        const items = attachmentsResponse && Array.isArray(attachmentsResponse.items) ? attachmentsResponse.items : [];
-        return items.map((item) => {
-            const fields = item.fields || {};
-            return {
-                id: item.id,
-                fields,
-                fieldsEntries: this.toFieldsEntries(fields)
-            };
-        });
-    }
-
-    toFieldsEntries(fieldsObj) {
-        const obj = fieldsObj || {};
-        return Object.keys(obj)
-            .map((key) => ({ key, value: obj[key] }))
-            .filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
-    }
-
-    get hasAttachments() {
-        return Array.isArray(this.attachments) && this.attachments.length > 0;
     }
 
     reduceError(error) {
