@@ -81,6 +81,11 @@ export default class EmailMessageBackupWidget extends LightningElement {
         return `Точка расширения: selectedEmailMessageId = ${this.selectedEmailMessageId}`;
     }
 
+    get hideCheckboxColumn() {
+        // Keep checkbox visible for single-row selection.
+        return false;
+    }
+
     reduceError(error) {
         if (!error) {
             return 'Unknown error';

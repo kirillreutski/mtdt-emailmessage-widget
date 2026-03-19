@@ -27,17 +27,6 @@ private class EmailMessageBackupWidgetServiceTest {
         }
     }
 
-    @TestSetup
-    static void setup() {
-        insert new WidgetBackendConfig__mdt(
-            DeveloperName = 'Default',
-            MasterLabel = 'Default',
-            BaseUrl__c = 'https://example.org',
-            WidgetToken__c = 'token-123',
-            TimeoutMs__c = 10000
-        );
-    }
-
     @IsTest
     static void searchEmailMessages_mapsFieldsAndHandlesResponse() {
         Test.setMock(HttpCalloutMock.class, new SuccessMock());

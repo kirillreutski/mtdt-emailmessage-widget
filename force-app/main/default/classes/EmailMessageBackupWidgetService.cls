@@ -14,26 +14,21 @@ public with sharing class EmailMessageBackupWidgetService {
         @AuraEnabled public Boolean isDeleted;
     }
 
-    public class SearchRequestDto {
-        public String sObject;
-        public String ParentId;
-        public Integer limit;
-        public Integer offset;
-    }
-
     public class SearchResponseDto {
-        public String sObject;
+        // NOTE: Field names intentionally avoid Apex reserved words.
+        // Response JSON is normalized before deserialization.
+        public String sObjectType;
         public String data_backup_id;
         public List<BackupItemDto> items;
-        public Integer limit;
-        public Integer offset;
+        public Integer limitValue;
+        public Integer offsetValue;
     }
 
     public class BackupItemDto {
         public String id;
-        public String sObject;
+        public String sObjectType;
         public Map<String, Object> fields;
-        public SystemDto system;
+        public SystemDto systemDto;
         public VersionDto version;
     }
 
@@ -47,13 +42,13 @@ public with sharing class EmailMessageBackupWidgetService {
     }
 
     public class VersionsResponseDto {
-        public String sObject;
+        public String sObjectType;
         public String data_backup_id;
         public List<BackupItemDto> items;
     }
 
     public class AttachmentsResponseDto {
-        public String sObject;
+        public String sObjectType;
         public String data_backup_id;
         public List<BackupItemDto> items;
     }
@@ -64,15 +59,18 @@ public with sharing class EmailMessageBackupWidgetService {
             throw new AuraHandledException('parentRecordId is required');
         }
 
-        SearchRequestDto requestDto = new SearchRequestDto();
-        requestDto.sObject = 'EmailMessage';
-        requestDto.ParentId = parentRecordId;
-        requestDto.limit = DEFAULT_LIMIT;
-        requestDto.offset = DEFAULT_OFFSET;
+        // Build request body using correct backend JSON keys.
+        Map<String, Object> requestBody = new Map<String, Object>();
+        requestBody.put('sObject', 'EmailMessage');
+        requestBody.put('ParentId', parentRecordId);
+        requestBody.put('limit', DEFAULT_LIMIT);
+        requestBody.put('offset', DEFAULT_OFFSET);
 
-        HttpResponse response = sendRequest('POST', SEARCH_PATH, JSON.serialize(requestDto));
-        SearchResponseDto payload =
-            (SearchResponseDto) JSON.deserialize(response.getBody(), SearchResponseDto.class);
+        HttpResponse response = sendRequest('POST', SEARCH_PATH, JSON.serialize(requestBody));
+        SearchResponseDto payload = (SearchResponseDto) JSON.deserialize(
+            normalizeResponseJson(response.getBody()),
+            SearchResponseDto.class
+        );
         return mapRows(payload);
     }
 
@@ -86,7 +84,10 @@ public with sharing class EmailMessageBackupWidgetService {
             '/sf-widget/record-backups/EmailMessage/' + EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
             '/versions';
         HttpResponse response = sendRequest('GET', path, null);
-        return (VersionsResponseDto) JSON.deserialize(response.getBody(), VersionsResponseDto.class);
+        return (VersionsResponseDto) JSON.deserialize(
+            normalizeResponseJson(response.getBody()),
+            VersionsResponseDto.class
+        );
     }
 
     @AuraEnabled(cacheable=false)
@@ -99,7 +100,10 @@ public with sharing class EmailMessageBackupWidgetService {
             '/sf-widget/record-backups/EmailMessage/' + EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
             '/extensions/attachments';
         HttpResponse response = sendRequest('GET', path, null);
-        return (AttachmentsResponseDto) JSON.deserialize(response.getBody(), AttachmentsResponseDto.class);
+        return (AttachmentsResponseDto) JSON.deserialize(
+            normalizeResponseJson(response.getBody()),
+            AttachmentsResponseDto.class
+        );
     }
 
     private static List<EmailMessageRow> mapRows(SearchResponseDto payload) {
@@ -118,7 +122,8 @@ public with sharing class EmailMessageBackupWidgetService {
             row.status = valueFromFields(item, 'Status');
             row.currentVersionNo =
                 item != null && item.version != null ? item.version.current_version_no : null;
-            row.isDeleted = item != null && item.system != null ? item.system.is_deleted : null;
+            row.isDeleted =
+                item != null && item.systemDto != null ? item.systemDto.is_deleted : null;
             rows.add(row);
         }
         return rows;
@@ -165,5 +170,19 @@ public with sharing class EmailMessageBackupWidgetService {
         String normalizedBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         String normalizedPath = path.startsWith('/') ? path : '/' + path;
         return normalizedBase + normalizedPath;
+    }
+
+    // Replace JSON keys that conflict with Apex reserved identifiers.
+    private static String normalizeResponseJson(String json) {
+        if (json == null) {
+            return null;
+        }
+        // Use exact key replacements to avoid altering values.
+        String normalized = json;
+        normalized = normalized.replace('"sObject"', '"sObjectType"');
+        normalized = normalized.replace('"system"', '"systemDto"');
+        normalized = normalized.replace('"limit"', '"limitValue"');
+        normalized = normalized.replace('"offset"', '"offsetValue"');
+        return normalized;
     }
 }
