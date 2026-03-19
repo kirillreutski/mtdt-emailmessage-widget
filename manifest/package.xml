@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>EmailMessageBackupService</members>
+        <members>EmailMessageBackupServiceTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>emailMessageBackupWidget</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>WidgetBackendConfig__mdt</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <members>WidgetBackendConfig.Default</members>
+        <name>CustomMetadata</name>
+    </types>
+    <types>
+        <members>EmailMessageWidget</members>
+        <name>PermissionSet</name>
+    </types>
+    <version>62.0</version>
+</Package>

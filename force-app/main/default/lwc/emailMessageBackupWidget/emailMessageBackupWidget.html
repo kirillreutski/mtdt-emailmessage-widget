@@ -1,0 +1,40 @@
+<template>
+    <lightning-card title="Email Backups" icon-name="standard:email_chatter">
+        <div class="container">
+            <div class="toolbar">
+                <lightning-button
+                    label="Refresh"
+                    variant="neutral"
+                    onclick={handleRefresh}
+                    disabled={isLoading}
+                ></lightning-button>
+            </div>
+
+            <template lwc:if={isLoading}>
+                <div class="state-row">
+                    <lightning-spinner alternative-text="Loading email backups" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <template lwc:elseif={errorMessage}>
+                <div class="state-row error">{errorMessage}</div>
+            </template>
+
+            <template lwc:elseif={hasRows}>
+                <lightning-datatable
+                    key-field="id"
+                    data={rows}
+                    columns={columns}
+                    max-row-selection="1"
+                    onrowselection={handleRowSelection}
+                    hide-checkbox-column={false}
+                ></lightning-datatable>
+                <div class="extension-hint">{extensionHint}</div>
+            </template>
+
+            <template lwc:elseif={isEmpty}>
+                <div class="state-row empty">No EmailMessage backups found for this record.</div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
