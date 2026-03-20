@@ -32,12 +32,21 @@ public with sharing class EmailMessageBackupWidgetService {
     }
 
     public class SearchRequestDto {
-        // NOTE: Field names intentionally avoid Apex reserved words.
-        // We normalize JSON keys after serialization.
-        public String sObjectType;
+        public String sObject;
         public String ParentId;
-        public Integer limitValue;
-        public Integer offsetValue;
+        public Integer x_limit;
+        public Integer offset;
+        public Boolean include_deleted;
+
+        public String getString() {
+            Map<String, Object> jsonMap = new Map<String, Object>();
+            jsonMap.put('sObject', this.sObject);
+            jsonMap.put('ParentId', this.ParentId);
+            jsonMap.put('limit', this.x_limit);
+            jsonMap.put('offset', this.offset);
+            jsonMap.put('include_deleted', this.include_deleted);
+            return JSON.serialize(jsonMap);
+        }
     }
 
     public class BackupItemDto {
@@ -75,17 +84,14 @@ public with sharing class EmailMessageBackupWidgetService {
             throw new AuraHandledException('parentRecordId is required');
         }
 
-        // Build request body without using Apex `Object` in JSON.
         SearchRequestDto requestDto = new SearchRequestDto();
-        requestDto.sObjectType = 'EmailMessage';
+        requestDto.sObject = 'EmailMessage';
         requestDto.ParentId = parentRecordId;
-        requestDto.limitValue = DEFAULT_LIMIT;
-        requestDto.offsetValue = DEFAULT_OFFSET;
+        requestDto.x_limit = DEFAULT_LIMIT;
+        requestDto.offset = DEFAULT_OFFSET;
+        requestDto.include_deleted = true;
 
-        String requestBody = JSON.serialize(requestDto);
-        requestBody = requestBody.replace('"sObjectType"', '"sObject"');
-        requestBody = requestBody.replace('"limitValue"', '"limit"');
-        requestBody = requestBody.replace('"offsetValue"', '"offset"');
+        String requestBody = requestDto.getString();
 
         HttpResponse response = sendRequest('POST', SEARCH_PATH, requestBody);
         SearchResponseDto payload = (SearchResponseDto) JSON.deserialize(

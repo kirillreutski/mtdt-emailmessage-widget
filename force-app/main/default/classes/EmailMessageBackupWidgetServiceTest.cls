@@ -300,11 +300,65 @@ private class EmailMessageBackupWidgetServiceTest {
         System.assert(rows[0].previewTableColumns.contains('Subject'));
     }
 
+    @IsTest
+    static void searchRequestDto_getString_returnsCorrectJson() {
+        EmailMessageBackupWidgetService.SearchRequestDto dto =
+            new EmailMessageBackupWidgetService.SearchRequestDto();
+        dto.sObject = 'EmailMessage';
+        dto.ParentId = '500xx0000000001';
+        dto.x_limit = 50;
+        dto.offset = 0;
+        dto.include_deleted = true;
+
+        Test.startTest();
+        String json = dto.getString();
+        Test.stopTest();
+
+        System.assert(json.contains('"sObject":"EmailMessage"'));
+        System.assert(json.contains('"ParentId":"500xx0000000001"'));
+        System.assert(json.contains('"limit":50'));
+        System.assert(json.contains('"offset":0'));
+        System.assert(json.contains('"include_deleted":true'));
+        // Ensure no Apex-internal field names leak into JSON
+        System.assert(!json.contains('x_limit'));
+        System.assert(!json.contains('sObjectType'));
+    }
+
+    @IsTest
+    static void searchEmailMessages_sendsCorrectRequestBody() {
+        RequestBodyVerifyMock verifyMock = new RequestBodyVerifyMock();
+        Test.setMock(HttpCalloutMock.class, verifyMock);
+
+        Test.startTest();
+        EmailMessageBackupWidgetService.searchEmailMessages('500xx0000000001');
+        Test.stopTest();
+
+        System.assertNotEquals(null, verifyMock.receivedBody);
+        System.assert(verifyMock.receivedBody.contains('"sObject":"EmailMessage"'));
+        System.assert(verifyMock.receivedBody.contains('"ParentId":"500xx0000000001"'));
+        System.assert(verifyMock.receivedBody.contains('"limit":'));
+        System.assert(verifyMock.receivedBody.contains('"offset":'));
+        System.assert(verifyMock.receivedBody.contains('"include_deleted":'));
+    }
+
     private class UserContextVerifyMock implements HttpCalloutMock {
         HttpRequest receivedRequest;
 
         public HttpResponse respond(HttpRequest req) {
             receivedRequest = req;
+            HttpResponse res = new HttpResponse();
+            res.setStatusCode(200);
+            res.setStatus('OK');
+            res.setBody('{"sObject":"EmailMessage","items":[]}');
+            return res;
+        }
+    }
+
+    private class RequestBodyVerifyMock implements HttpCalloutMock {
+        String receivedBody;
+
+        public HttpResponse respond(HttpRequest req) {
+            receivedBody = req.getBody();
             HttpResponse res = new HttpResponse();
             res.setStatusCode(200);
             res.setStatus('OK');
