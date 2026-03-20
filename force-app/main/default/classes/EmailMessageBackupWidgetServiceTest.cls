@@ -304,7 +304,7 @@ private class EmailMessageBackupWidgetServiceTest {
     static void searchRequestDto_getString_returnsCorrectJson() {
         EmailMessageBackupWidgetService.SearchRequestDto dto =
             new EmailMessageBackupWidgetService.SearchRequestDto();
-        dto.sObject = 'EmailMessage';
+        dto.sObjectType = 'EmailMessage';
         dto.ParentId = '500xx0000000001';
         dto.x_limit = 50;
         dto.offset = 0;

@@ -32,7 +32,7 @@ public with sharing class EmailMessageBackupWidgetService {
     }
 
     public class SearchRequestDto {
-        public String sObject;
+        public String sObjectType;
         public String ParentId;
         public Integer x_limit;
         public Integer offset;
@@ -40,7 +40,7 @@ public with sharing class EmailMessageBackupWidgetService {
 
         public String getString() {
             Map<String, Object> jsonMap = new Map<String, Object>();
-            jsonMap.put('sObject', this.sObject);
+            jsonMap.put('sObject', this.sObjectType);
             jsonMap.put('ParentId', this.ParentId);
             jsonMap.put('limit', this.x_limit);
             jsonMap.put('offset', this.offset);
@@ -85,7 +85,7 @@ public with sharing class EmailMessageBackupWidgetService {
         }
 
         SearchRequestDto requestDto = new SearchRequestDto();
-        requestDto.sObject = 'EmailMessage';
+        requestDto.sObjectType = 'EmailMessage';
         requestDto.ParentId = parentRecordId;
         requestDto.x_limit = DEFAULT_LIMIT;
         requestDto.offset = DEFAULT_OFFSET;
