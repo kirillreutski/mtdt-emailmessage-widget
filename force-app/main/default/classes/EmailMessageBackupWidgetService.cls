@@ -73,9 +73,19 @@ public with sharing class EmailMessageBackupWidgetService {
     }
 
     public class AttachmentsResponseDto {
-        @AuraEnabled public String sObjectType;
-        @AuraEnabled public String data_backup_id;
-        @AuraEnabled public List<BackupItemDto> items;
+        @AuraEnabled public List<AttachmentItemDto> items;
+    }
+
+    public class AttachmentItemDto {
+        @AuraEnabled public Integer id;
+        @AuraEnabled public String fileName;
+        @AuraEnabled public String title;
+        @AuraEnabled public String fileExtension;
+        @AuraEnabled public String contentType;
+        @AuraEnabled public Integer contentSize;
+        @AuraEnabled public String systemModstamp;
+        @AuraEnabled public Boolean isDeleted;
+        @AuraEnabled public String downloadPath;
     }
 
     @AuraEnabled(cacheable=false)
@@ -128,10 +138,17 @@ public with sharing class EmailMessageBackupWidgetService {
             '/sf-widget/record-backups/EmailMessage/' + EncodingUtil.urlEncode(emailMessageId, 'UTF-8') +
             '/extensions/attachments';
         HttpResponse response = sendRequest('GET', path, null);
-        return (AttachmentsResponseDto) JSON.deserialize(
-            normalizeResponseJson(response.getBody()),
-            AttachmentsResponseDto.class
-        );
+        return (AttachmentsResponseDto) JSON.deserialize(response.getBody(), AttachmentsResponseDto.class);
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static String getBackendBaseUrl() {
+        WidgetBackendConfig__mdt config = WidgetBackendConfig__mdt.getInstance('Default');
+        if (config == null || String.isBlank(config.BaseUrl__c)) {
+            return '';
+        }
+        String baseUrl = config.BaseUrl__c;
+        return baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
     private static List<EmailMessageRow> mapRows(SearchResponseDto payload, List<String> previewTableColumns) {

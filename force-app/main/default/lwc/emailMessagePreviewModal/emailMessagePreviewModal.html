@@ -77,17 +77,26 @@
                     <ul class="attachments-list">
                         <template for:each={attachments} for:item="att">
                             <li key={att.id} class="attachments-item">
-                                <div class="attachments-title">{att.id}</div>
-                                <template if:true={att.fieldsEntries}>
-                                    <div class="attachments-fields">
-                                        <template for:each={att.fieldsEntries} for:item="kv">
-                                            <div key={kv.key} class="attachments-field">
-                                                <span class="attachments-field-key">{kv.key}:</span>
-                                                <span class="attachments-field-value">{kv.value}</span>
-                                            </div>
-                                        </template>
+                                <div class="attachment-row">
+                                    <lightning-icon icon-name={att.icon} size="small" class="attachment-icon"></lightning-icon>
+                                    <div class="attachment-info">
+                                        <div class="attachment-filename">{att.fileName}</div>
+                                        <div class="attachment-meta">
+                                            <span>{att.contentSize}</span>
+                                            <template if:true={att.fileExtension}>
+                                                <span class="attachment-separator">•</span>
+                                                <span>{att.fileExtension}</span>
+                                            </template>
+                                        </div>
                                     </div>
-                                </template>
+                                    <lightning-button
+                                        label="Download"
+                                        variant="brand-outline"
+                                        size="small"
+                                        data-path={att.downloadPath}
+                                        onclick={handleDownload}
+                                    ></lightning-button>
+                                </div>
                             </li>
                         </template>
                     </ul>

@@ -58,29 +58,42 @@
 
 .attachments-list {
     margin: 0;
-    padding-left: 1.25rem;
+    padding: 0;
+    list-style: none;
 }
 
 .attachments-item {
-    margin: 0.35rem 0;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background-color: #f8f8f8;
+    border-radius: 0.25rem;
 }
 
-.attachments-title {
+.attachment-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.attachment-icon {
+    flex-shrink: 0;
+}
+
+.attachment-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.attachment-filename {
     font-weight: 600;
-    margin-bottom: 0.25rem;
+    word-break: break-word;
 }
 
-.attachments-fields {
-    margin-top: 0.25rem;
-}
-
-.attachments-field {
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 0.5rem;
-}
-
-.attachments-field-key {
+.attachment-meta {
+    font-size: 0.75rem;
     color: #706e6b;
-    font-weight: 600;
+}
+
+.attachment-separator {
+    margin: 0 0.25rem;
 }

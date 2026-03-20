@@ -74,9 +74,9 @@ private class EmailMessageBackupWidgetServiceTest {
             res.setStatusCode(200);
             res.setStatus('OK');
             res.setBody(
-                '{"sObject":"EmailMessage","items":[' +
-                '{"id":"00P1","fields":{"Name":"file.pdf","ContentType":"application/pdf"}},' +
-                '{"id":"00P2","fields":{"Name":"image.png","ContentType":"image/png"}}' +
+                '{"items":[' +
+                '{"id":42,"fileName":"test-file.txt","title":"test-file","fileExtension":"txt","contentType":"TEXT","contentSize":16,"systemModstamp":"2026-03-20T16:36:22.000Z","isDeleted":false,"downloadPath":"/sf-widget/record-backups/EmailMessage/02s123/extensions/attachments/42/download"},' +
+                '{"id":43,"fileName":"report.pdf","title":"report","fileExtension":"pdf","contentType":"APPLICATION_PDF","contentSize":1024,"systemModstamp":"2026-03-20T17:00:00.000Z","isDeleted":false,"downloadPath":"/sf-widget/record-backups/EmailMessage/02s123/extensions/attachments/43/download"}' +
                 ']}'
             );
             return res;
@@ -238,8 +238,12 @@ private class EmailMessageBackupWidgetServiceTest {
 
         System.assertNotEquals(null, attachments);
         System.assertEquals(2, attachments.items.size());
-        System.assertEquals('00P1', attachments.items[0].id);
-        System.assertEquals('file.pdf', attachments.items[0].fields.get('Name'));
+        System.assertEquals(42, attachments.items[0].id);
+        System.assertEquals('test-file.txt', attachments.items[0].fileName);
+        System.assertEquals('txt', attachments.items[0].fileExtension);
+        System.assertEquals('TEXT', attachments.items[0].contentType);
+        System.assertEquals(16, attachments.items[0].contentSize);
+        System.assertEquals('/sf-widget/record-backups/EmailMessage/02s123/extensions/attachments/42/download', attachments.items[0].downloadPath);
     }
 
     @IsTest
@@ -339,6 +343,18 @@ private class EmailMessageBackupWidgetServiceTest {
         System.assert(verifyMock.receivedBody.contains('"limit":'));
         System.assert(verifyMock.receivedBody.contains('"offset":'));
         System.assert(verifyMock.receivedBody.contains('"include_deleted":'));
+    }
+
+    @IsTest
+    static void getBackendBaseUrl_returnsConfiguredUrl() {
+        Test.setMock(HttpCalloutMock.class, new SuccessMock());
+
+        Test.startTest();
+        String baseUrl = EmailMessageBackupWidgetService.getBackendBaseUrl();
+        Test.stopTest();
+
+        System.assertNotEquals(null, baseUrl);
+        System.assert(baseUrl.length() > 0);
     }
 
     private class UserContextVerifyMock implements HttpCalloutMock {

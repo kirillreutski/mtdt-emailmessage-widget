@@ -2,7 +2,22 @@ import { api } from 'lwc';
 import LightningModal from 'lightning/modal';
 import getEmailMessageVersions from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageVersions';
 import getEmailMessageAttachments from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageAttachments';
+import getBackendBaseUrl from '@salesforce/apex/EmailMessageBackupWidgetService.getBackendBaseUrl';
 import { reduceError } from 'c/emailMessageUtils';
+
+const CONTENT_TYPE_ICONS = {
+    PDF: 'doctype:pdf',
+    TEXT: 'doctype:txt',
+    IMAGE: 'doctype:image',
+    WORD: 'doctype:word',
+    EXCEL: 'doctype:excel',
+    POWER_POINT: 'doctype:ppt',
+    CSV: 'doctype:csv',
+    XML: 'doctype:xml',
+    HTML: 'doctype:html',
+    ZIP: 'doctype:zip',
+    DEFAULT: 'doctype:attachment'
+};
 
 export default class EmailMessagePreviewModal extends LightningModal {
     @api emailMessageId;
@@ -16,6 +31,7 @@ export default class EmailMessagePreviewModal extends LightningModal {
     versionsCount = 0;
     attachments = [];
     previewEntries = [];
+    backendBaseUrl = '';
 
     fromAddress = '';
     toAddress = '';
@@ -80,16 +96,18 @@ export default class EmailMessagePreviewModal extends LightningModal {
         }
 
         try {
-            const [versions, attachmentsResponse] = await Promise.all([
+            const [versions, attachmentsResponse, baseUrl] = await Promise.all([
                 getEmailMessageVersions({ emailMessageId: this.emailMessageId }),
-                getEmailMessageAttachments({ emailMessageId: this.emailMessageId })
+                getEmailMessageAttachments({ emailMessageId: this.emailMessageId }),
+                getBackendBaseUrl()
             ]);
 
             this.versionsCount =
                 versions && Array.isArray(versions.items) ? versions.items.length : 0;
+            this.backendBaseUrl = baseUrl || '';
             this.attachments = this.normalizeAttachments(attachmentsResponse);
         } catch (error) {
-            this.modalErrorMessage = this.reduceError(error);
+            this.modalErrorMessage = reduceError(error);
         } finally {
             this.modalIsLoading = false;
         }
@@ -97,6 +115,14 @@ export default class EmailMessagePreviewModal extends LightningModal {
 
     handleClose() {
         this.close();
+    }
+
+    handleDownload(event) {
+        const downloadPath = event.currentTarget.dataset.path;
+        if (downloadPath) {
+            const fullUrl = this.backendBaseUrl + downloadPath;
+            window.open(fullUrl, '_blank');
+        }
     }
 
     toPreviewEntries(previewFields, previewFieldUrls, excludeKeys) {
@@ -129,21 +155,46 @@ export default class EmailMessagePreviewModal extends LightningModal {
     normalizeAttachments(attachmentsResponse) {
         const items =
             attachmentsResponse && Array.isArray(attachmentsResponse.items) ? attachmentsResponse.items : [];
-        return items.map((item) => {
-            const fields = item.fields || {};
-            return {
-                id: item.id,
-                fields,
-                fieldsEntries: this.toFieldsEntries(fields)
-            };
-        });
+        return items.map((item) => ({
+            id: item.id,
+            fileName: item.fileName || 'Unknown',
+            title: item.title || item.fileName || 'Unknown',
+            fileExtension: item.fileExtension || '',
+            contentType: item.contentType || '',
+            contentSize: this.formatFileSize(item.contentSize),
+            systemModstamp: item.systemModstamp || '',
+            isDeleted: item.isDeleted || false,
+            downloadPath: item.downloadPath || '',
+            icon: this.getAttachmentIcon(item.contentType, item.fileExtension)
+        }));
     }
 
-    toFieldsEntries(fieldsObj) {
-        const obj = fieldsObj || {};
-        return Object.keys(obj)
-            .map((key) => ({ key, value: obj[key] }))
-            .filter((e) => e.value !== null && e.value !== undefined && e.value !== '');
+    formatFileSize(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const size = (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0);
+        return `${size} ${units[i]}`;
+    }
+
+    getAttachmentIcon(contentType, fileExtension) {
+        const ct = (contentType || '').toUpperCase();
+        const ext = (fileExtension || '').toLowerCase();
+
+        if (ct.includes('PDF') || ext === 'pdf') return CONTENT_TYPE_ICONS.PDF;
+        if (ct.includes('IMAGE') || ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'].includes(ext)) {
+            return CONTENT_TYPE_ICONS.IMAGE;
+        }
+        if (ct.includes('WORD') || ['doc', 'docx'].includes(ext)) return CONTENT_TYPE_ICONS.WORD;
+        if (ct.includes('EXCEL') || ['xls', 'xlsx'].includes(ext)) return CONTENT_TYPE_ICONS.EXCEL;
+        if (ct.includes('POWERPOINT') || ['ppt', 'pptx'].includes(ext)) return CONTENT_TYPE_ICONS.POWER_POINT;
+        if (ct.includes('CSV') || ext === 'csv') return CONTENT_TYPE_ICONS.CSV;
+        if (ct.includes('XML') || ext === 'xml') return CONTENT_TYPE_ICONS.XML;
+        if (ct.includes('HTML') || ext === 'html' || ext === 'htm') return CONTENT_TYPE_ICONS.HTML;
+        if (ct.includes('ZIP') || ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return CONTENT_TYPE_ICONS.ZIP;
+        if (ct.includes('TEXT') || ext === 'txt') return CONTENT_TYPE_ICONS.TEXT;
+
+        return CONTENT_TYPE_ICONS.DEFAULT;
     }
 
     get hasAttachments() {
