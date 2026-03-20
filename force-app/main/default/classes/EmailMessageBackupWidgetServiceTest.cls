@@ -346,15 +346,44 @@ private class EmailMessageBackupWidgetServiceTest {
     }
 
     @IsTest
-    static void getBackendBaseUrl_returnsConfiguredUrl() {
-        Test.setMock(HttpCalloutMock.class, new SuccessMock());
+    static void getAttachmentDownloadUrl_returnsSignedUrl() {
+        Test.setMock(HttpCalloutMock.class, new DownloadUrlMock());
 
         Test.startTest();
-        String baseUrl = EmailMessageBackupWidgetService.getBackendBaseUrl();
+        String url = EmailMessageBackupWidgetService.getAttachmentDownloadUrl('/sf-widget/record-backups/EmailMessage/02s123/extensions/attachments/42/download');
         Test.stopTest();
 
-        System.assertNotEquals(null, baseUrl);
-        System.assert(baseUrl.length() > 0);
+        System.assertEquals('https://storage.example.com/signed-download-url', url);
+    }
+
+    @IsTest
+    static void getAttachmentDownloadUrl_throwsWhenPathMissing() {
+        try {
+            EmailMessageBackupWidgetService.getAttachmentDownloadUrl(null);
+            System.assert(false, 'Expected exception');
+        } catch (AuraHandledException ex) {
+            System.assert(ex.getMessage().contains('downloadPath is required'));
+        }
+    }
+
+    @IsTest
+    static void getAttachmentDownloadUrl_throwsWhenPathBlank() {
+        try {
+            EmailMessageBackupWidgetService.getAttachmentDownloadUrl('   ');
+            System.assert(false, 'Expected exception');
+        } catch (AuraHandledException ex) {
+            System.assert(ex.getMessage().contains('downloadPath is required'));
+        }
+    }
+
+    private class DownloadUrlMock implements HttpCalloutMock {
+        public HttpResponse respond(HttpRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setStatusCode(200);
+            res.setStatus('OK');
+            res.setBody('{"url":"https://storage.example.com/signed-download-url"}');
+            return res;
+        }
     }
 
     private class UserContextVerifyMock implements HttpCalloutMock {

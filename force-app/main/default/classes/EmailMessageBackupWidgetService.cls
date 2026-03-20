@@ -141,14 +141,25 @@ public with sharing class EmailMessageBackupWidgetService {
         return (AttachmentsResponseDto) JSON.deserialize(response.getBody(), AttachmentsResponseDto.class);
     }
 
-    @AuraEnabled(cacheable=true)
-    public static String getBackendBaseUrl() {
-        WidgetBackendConfig__mdt config = WidgetBackendConfig__mdt.getInstance('Default');
-        if (config == null || String.isBlank(config.BaseUrl__c)) {
-            return '';
+    @AuraEnabled(cacheable=false)
+    public static String getAttachmentDownloadUrl(String downloadPath) {
+        if (String.isBlank(downloadPath)) {
+            throw new AuraHandledException('downloadPath is required');
         }
-        String baseUrl = config.BaseUrl__c;
-        return baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+
+        HttpResponse response = sendRequest('GET', downloadPath, null);
+        DownloadUrlResponseDto dto = (DownloadUrlResponseDto) JSON.deserialize(
+            response.getBody(),
+            DownloadUrlResponseDto.class
+        );
+        if (dto == null || String.isBlank(dto.url)) {
+            throw new AuraHandledException('Download URL not found in response');
+        }
+        return dto.url;
+    }
+
+    public class DownloadUrlResponseDto {
+        @AuraEnabled public String url;
     }
 
     private static List<EmailMessageRow> mapRows(SearchResponseDto payload, List<String> previewTableColumns) {

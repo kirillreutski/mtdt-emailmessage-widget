@@ -2,7 +2,7 @@ import { api } from 'lwc';
 import LightningModal from 'lightning/modal';
 import getEmailMessageVersions from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageVersions';
 import getEmailMessageAttachments from '@salesforce/apex/EmailMessageBackupWidgetService.getEmailMessageAttachments';
-import getBackendBaseUrl from '@salesforce/apex/EmailMessageBackupWidgetService.getBackendBaseUrl';
+import getAttachmentDownloadUrl from '@salesforce/apex/EmailMessageBackupWidgetService.getAttachmentDownloadUrl';
 import { reduceError } from 'c/emailMessageUtils';
 
 const CONTENT_TYPE_ICONS = {
@@ -31,7 +31,6 @@ export default class EmailMessagePreviewModal extends LightningModal {
     versionsCount = 0;
     attachments = [];
     previewEntries = [];
-    backendBaseUrl = '';
 
     fromAddress = '';
     toAddress = '';
@@ -96,15 +95,13 @@ export default class EmailMessagePreviewModal extends LightningModal {
         }
 
         try {
-            const [versions, attachmentsResponse, baseUrl] = await Promise.all([
+            const [versions, attachmentsResponse] = await Promise.all([
                 getEmailMessageVersions({ emailMessageId: this.emailMessageId }),
-                getEmailMessageAttachments({ emailMessageId: this.emailMessageId }),
-                getBackendBaseUrl()
+                getEmailMessageAttachments({ emailMessageId: this.emailMessageId })
             ]);
 
             this.versionsCount =
                 versions && Array.isArray(versions.items) ? versions.items.length : 0;
-            this.backendBaseUrl = baseUrl || '';
             this.attachments = this.normalizeAttachments(attachmentsResponse);
         } catch (error) {
             this.modalErrorMessage = reduceError(error);
@@ -117,11 +114,19 @@ export default class EmailMessagePreviewModal extends LightningModal {
         this.close();
     }
 
-    handleDownload(event) {
+    async handleDownload(event) {
         const downloadPath = event.currentTarget.dataset.path;
-        if (downloadPath) {
-            const fullUrl = this.backendBaseUrl + downloadPath;
-            window.open(fullUrl, '_blank');
+        if (!downloadPath) {
+            return;
+        }
+
+        try {
+            const downloadUrl = await getAttachmentDownloadUrl({ downloadPath });
+            if (downloadUrl) {
+                window.open(downloadUrl, '_blank');
+            }
+        } catch (error) {
+            this.modalErrorMessage = reduceError(error);
         }
     }
 
