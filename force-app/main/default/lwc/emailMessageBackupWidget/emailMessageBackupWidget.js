@@ -8,11 +8,13 @@ const SUBJECT_COLUMN = {
     fieldName: 'subject',
     type: 'button',
     typeAttributes: {
-        label: { fieldName: 'subject' },
+        label: { fieldName: 'subjectDisplay' },
         name: 'preview',
         variant: 'base'
     }
 };
+
+const NO_SUBJECT_LABEL = '(no subject)';
 
 function tokenToFieldName(token) {
     // `MessageDate` -> `messageDate`
@@ -84,9 +86,11 @@ export default class EmailMessageBackupWidget extends LightningElement {
             this.rows = (payload || []).map((item) => {
                 const previewFields = item.previewFields || {};
                 const previewFieldUrls = item.previewFieldUrls || {};
+                const subject = item.subject || previewFields.Subject || '';
                 const row = {
                     id: item.id,
-                    subject: item.subject || previewFields.Subject || '',
+                    subject,
+                    subjectDisplay: subject || NO_SUBJECT_LABEL,
                     previewFields,
                     previewFieldUrls,
                     // Keep for backward compatibility / modal params.

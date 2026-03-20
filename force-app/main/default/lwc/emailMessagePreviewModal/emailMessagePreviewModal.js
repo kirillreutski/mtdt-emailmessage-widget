@@ -149,5 +149,9 @@ export default class EmailMessagePreviewModal extends LightningModal {
     get hasAttachments() {
         return Array.isArray(this.attachments) && this.attachments.length > 0;
     }
+
+    get subjectDisplay() {
+        return this.emailMessageSubject || '(no subject)';
+    }
 }
 
